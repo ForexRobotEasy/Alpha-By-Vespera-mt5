@@ -1,0 +1,91 @@
+mql5
+//+------------------------------------------------------------------+
+//|                                                     Alpha By Vespera MT5 |
+//|                                                Developer: Forex Robot Easy Team |
+//|                                                Developer's site: forexroboteasy.com |
+//+------------------------------------------------------------------+
+
+//+------------------------------------------------------------------+
+//| Include files                                                     |
+//+------------------------------------------------------------------+
+#include <Trade\Trade.mqh>
+#include <Trade\PositionInfo.mqh>
+
+//+------------------------------------------------------------------+
+//| Input parameters                                                  |
+//+------------------------------------------------------------------+
+input int KeltnerPeriod = 20;
+input double KeltnerDeviation = 2.0;
+input int StopLoss = 50;
+input int TakeProfit = 100;
+
+//+------------------------------------------------------------------+
+//| Global variables                                                  |
+//+------------------------------------------------------------------+
+CTrade trade;
+CPositionInfo positionInfo;
+
+//+------------------------------------------------------------------+
+//| Expert initialization function                                     |
+//+------------------------------------------------------------------+
+int OnInit()
+{
+   trade.SetExpertMagicNumber(123456);
+   trade.SetDeviationInPoints(10);
+   return(INIT_SUCCEEDED);
+}
+
+//+------------------------------------------------------------------+
+//| Expert deinitialization function                                   |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+{
+   trade.CloseAll();
+}
+
+//+------------------------------------------------------------------+
+//| Expert tick function                                              |
+//+------------------------------------------------------------------+
+void OnTick()
+{
+   double upperChannel;
+   double lowerChannel;
+   double closePrice = SymbolInfoDouble(Symbol(), SYMBOL_BID);
+
+   if(positionInfo.Total() == 0)
+   {
+      if(closePrice > upperChannel)
+      {
+         trade.Buy(Symbol(), 0.01, closePrice + StopLoss * _Point, closePrice + TakeProfit * _Point);
+      }
+      else if(closePrice < lowerChannel)
+      {
+         trade.Sell(Symbol(), 0.01, closePrice - StopLoss * _Point, closePrice - TakeProfit * _Point);
+      }
+   }
+   else
+   {
+      if(positionInfo.Type() == POSITION_TYPE_BUY && closePrice < lowerChannel)
+      {
+         trade.Close(positionInfo.Ticket(), positionInfo.PositionLots());
+         trade.Sell(Symbol(), 0.01, closePrice - StopLoss * _Point, closePrice - TakeProfit * _Point);
+      }
+      else if(positionInfo.Type() == POSITION_TYPE_SELL && closePrice > upperChannel)
+      {
+         trade.Close(positionInfo.Ticket(), positionInfo.PositionLots());
+         trade.Buy(Symbol(), 0.01, closePrice + StopLoss * _Point, closePrice + TakeProfit * _Point);
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Custom function to calculate Keltner channel                      |
+//+------------------------------------------------------------------+
+void CalculateKeltnerChannel(double& upperChannel, double& lowerChannel)
+{
+   double ma = iMA(Symbol(), 0, KeltnerPeriod, 0, MODE_SMA, PRICE_CLOSE);
+   double atr = iATR(Symbol(), 0, KeltnerPeriod, 0);
+   upperChannel = ma + KeltnerDeviation * atr;
+   lowerChannel = ma - KeltnerDeviation * atr;
+}
+
